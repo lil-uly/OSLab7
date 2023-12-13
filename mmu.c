@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
 #include "list.h"
 #include "util.h"
 
@@ -40,6 +41,7 @@ void get_input(char *args[], int input[][2], int *n, int *size, int *policy)
         
 }
 
+
 void allocate_memory(list_t * freelist, list_t * alloclist, int pid, int blocksize, int policy) {
   
     /* if policy == 1 -> FIFO
@@ -63,11 +65,34 @@ void allocate_memory(list_t * freelist, list_t * alloclist, int pid, int blocksi
     *     d. set the fragment->end = original blk.end before you changed it in #4
     *     e. add the fragment to the FREE_LIST based on policy
     */
-    node_t *current = freelist->head;
-    while(current != NULL){
-        blk = current -> blk;
-        if
+    node_t *current_node = freelist -> head;
+
+    block_t *blk;
+    while(current_node != NULL){
+        blk = current_node -> blk;
+        if((blk -> end - blk -> start + 1) >= blocksize ){
+            block_t *alloc_blk = malloc(sizeof(block_t));
+            alloc_blk -> pid = pid;
+            alloc_blk -> start = blk -> start;
+            alloc_blk -> end = alloc_blk -> start + blocksize - 1;
+
+            list_add_ascending_by_address(alloclist, alloc_blk);
+
+            if(blk -> end - alloc_blk -> end > 0){
+                block_t *frag = malloc(sizeof(block_t));
+                frag -> pid = 0;
+                frag -> start = alloc_blk -> end + 1;
+                frag -> end = blk -> end;
+                list_add_to_back(freelist, frag);
+            }
+
+            list_remove_node(freelist, current_node);
+            break;
+        }
+        current_node = current_node -> next;
     }
+
+    if(current_node == NULL){printf("Ran out of memory\n");}
 }
 
 void deallocate_memory(list_t * alloclist, list_t * freelist, int pid, int policy) { 
@@ -85,6 +110,22 @@ void deallocate_memory(list_t * alloclist, list_t * freelist, int pid, int polic
     * 3. set the blk.pid back to 0
     * 4. add the blk back to the FREE_LIST based on policy.
     */
+    node_t *current_node = alloclist -> head;
+
+    block_t *blk;
+    while(current_node !=NULL){
+        blk = current_node -> blk;
+        if(blk -> pid == pid){
+            list_remove_node(alloclist, current_node);
+            list_add_to_back(freelist, blk);
+            break;
+        }
+        current_node = current_node -> next;
+    }
+    if (current_node == NULL){printf("Error: Can't locate Memory Used by PID: %d\n", pid);}
+      
+
+    
 }
 
 list_t* coalese_memory(list_t * list){

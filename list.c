@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "list.h"
 
@@ -106,6 +107,20 @@ void list_add_ascending_by_address(list_t *l, block_t *newblk){
    *    node_t *c = l.head;
    *    Insert newblk After Current Node if:   newblk->start > c->start
    */
+
+   node_t *previous = NULL;
+   node_t *current_node = l -> head;
+
+   int newBlkSize = newblk -> end - newblk -> start;
+   while((current_node != NULL) && (newBlkSize > current_node -> newblk -> end - current_node -> newblk -> start)){
+    previous = current_node;
+    current_node = current_node -> next;
+   }
+   if (previous == NULL){
+    list_add_to_front(l, newblk);
+    } else {
+      list_add_at_index(l, blk, list_get_index_of(l, previous-> newblk) + 1);
+      }
 }
 
 void list_add_ascending_by_blocksize(list_t *l, block_t *newblk){
@@ -123,7 +138,24 @@ void list_add_ascending_by_blocksize(list_t *l, block_t *newblk){
    * 
    *    USE the compareSize()
    */
+   int newBlkSize = newblk -> end - newblk -> start;
+   node_t *previous = NULL;
+   node_t *current_node = l -> head;
+   while((current_node != NULL && newBlkSize < (current_node -> newblk -> end - current_node -> newblk -> start))){
+    previous = current_node;
+    current_node = current_node -> next;
+   }
+    if (previous == NULL){
+       list_add_to_front(l, newblk);
+       }
+    else { 
+      list_add_at_index(l, newblk, list_get_index_of(l, previous -> newblk) + 1);
+   }
 }
+
+
+
+  
 
 void list_add_descending_by_blocksize(list_t *l, block_t *blk){
   node_t *current;
@@ -162,8 +194,8 @@ void list_add_descending_by_blocksize(list_t *l, block_t *blk){
                prev = current;
                current = current->next;
                
-               if(current != NULL)  // the last one in the list
-                     curblk_size = current->blk->end - current->blk->start;
+               if(current != NULL)  {// the last one in the list
+                     curblk_size = current->blk->end - current->blk->start;}
           }
           prev->next = newNode;
           newNode->next = current;
@@ -187,6 +219,24 @@ void list_coalese_nodes(list_t *l){
    * 
    * USE the compareSize()
    */
+
+
+    node_t *previous = l -> head;
+    node_t *current_node = previous -> next;
+
+    while (current_node != NULL) {
+        if (previous -> blk -> end + 1 == current_node -> blk -> start) {
+            // Merge physically adjacent blocks
+            previous -> blk -> end = current_node -> blk -> end;
+            
+            previous -> next = current_node -> next;
+            node_free(current_node);
+            current_node = previous ->next; // Move to the next node after coalescing
+        } else {
+            previous = current_node;
+            current_node = current_node -> next;
+        }
+    }
 }
 
 block_t* list_remove_from_back(list_t *l){
@@ -224,6 +274,30 @@ block_t* list_get_from_front(list_t *l) {
   return value; 
 }
 
+void list_remove_node(list_t *l, node_t *node) {
+    if (l == NULL || node == NULL) {
+        return; // You might want to handle this case appropriately
+    }
+
+    if (l->head == node) {
+        l->head = node->next;
+        node_free(node);
+        return;
+    }
+
+    node_t *current = l->head;
+    node_t *prev = NULL;
+
+    while (current != NULL && current != node) {
+        prev = current;
+        current = current->next;
+    }
+
+    if (current == node) {
+        prev->next = current->next;
+        node_free(current);
+    }
+}
 
 block_t* list_remove_from_front(list_t *l) { 
   block_t *value = NULL;
@@ -372,8 +446,18 @@ bool list_is_in_by_pid(list_t *l, int pid){
    * 
    * USE the comparePID()
    * 
-   * Look at list_is_in_by_size()
+   * Look at list_is_in_by_size() */
+    node_t *current_node = l -> head;
+    while(current_node != NULL){
+    if (comparePid(pid, current_node -> blk)){
+      return true;
+    }
+    current_node = current_node -> next;
+  }
+  return false;
 }
+
+
 
 /* Returns the index at which the given block of Size or greater appears. */
 int list_get_index_of_by_Size(list_t *l, int Size){
@@ -409,6 +493,6 @@ int list_get_index_of_by_Pid(list_t *l, int pid){
     current = current->next;
     i++;
   }
+  return -1;
 
-  return -1; 
 }
